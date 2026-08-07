@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Ghosts attack/Ghosts attack.vcxproj" Id="ba890bc1-925c-49cf-9412-ee08ce49ab24" />
+</Solution>
