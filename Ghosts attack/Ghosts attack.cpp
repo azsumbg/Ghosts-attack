@@ -588,27 +588,357 @@ void CreateGame()
 			x_scale = hwndRect.width / (scrRect.right - scrRect.left);
 			y_scale = hwndRect.height / (scrRect.bottom - scrRect.top);
 
+			hr = Draw->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::MediumSlateBlue), &statBrush);
+			hr = Draw->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkBlue), &txtBrush);
+			hr = Draw->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Gold), &hgltBrush);
+			hr = Draw->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Indigo), &inactBrush);
+			if (hr != S_OK)
+			{
+				LogErr(L"Error creating D2D1 SolidColorBrushes !");
+				ErrExit(eD2D);
+			}
 
+			D2D1_GRADIENT_STOP gStops[2]{};
+			ID2D1GradientStopCollection* gColl{ nullptr };
 
+			gStops[0].position = 0;
+			gStops[0].color = D2D1::ColorF(D2D1::ColorF::Brown);
+			gStops[1].position = 1.0f;
+			gStops[1].color = D2D1::ColorF(D2D1::ColorF::Maroon);
 
+			hr = Draw->CreateGradientStopCollection(gStops, 2, &gColl);
+			if (hr != S_OK)
+			{
+				LogErr(L"Error creating D2D1 GradientStopCollection for buttons Color Brushes !");
+				ErrExit(eD2D);
+			}
 
+			if (gColl)
+			{
+				hr = Draw->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(b1Rect.left +
+					(b1Rect.right - b1Rect.left) / 2.0f, 25.0f), D2D1::Point2F(0, 0), (b1Rect.right - b1Rect.left) / 2.0f, 25.0f),
+					gColl, &b1BckgBrush);
+				hr = Draw->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(b2Rect.left +
+					(b2Rect.right - b2Rect.left) / 2.0f, 25.0f), D2D1::Point2F(0, 0), (b2Rect.right - b2Rect.left) / 2.0f, 25.0f),
+					gColl, &b2BckgBrush);
+				hr = Draw->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(b3Rect.left +
+					(b3Rect.right - b3Rect.left) / 2.0f, 25.0f), D2D1::Point2F(0, 0), (b3Rect.right - b3Rect.left) / 2.0f, 25.0f),
+					gColl, &b3BckgBrush);
+				if (hr != S_OK)
+				{
+					LogErr(L"Error creating D2D1 buttons Color Brushes !");
+					ErrExit(eD2D);
+				}
 
+				FreeMem(&gColl);
+			}
+
+			bmpShot = Load(L".\\res\\img\\shot.png", Draw);
+			if (!bmpShot)
+			{
+				LogErr(L"Error loading bmpShot !");
+				ErrExit(eD2D);
+			}
+			bmpArmor = Load(L".\\res\\img\\assets\\armor.png", Draw);
+			if (!bmpArmor)
+			{
+				LogErr(L"Error loading bmpArmor !");
+				ErrExit(eD2D);
+			}
+			bmpChest = Load(L".\\res\\img\\assets\\Chest.png", Draw);
+			if (!bmpChest)
+			{
+				LogErr(L"Error loading bmpChest !");
+				ErrExit(eD2D);
+			}
+			bmpLife = Load(L".\\res\\img\\assets\\Life.png", Draw);
+			if (!bmpLife)
+			{
+				LogErr(L"Error loading bmpLife !");
+				ErrExit(eD2D);
+			}
+			bmpGun = Load(L".\\res\\img\\assets\\Gun.png", Draw);
+			if (!bmpGun)
+			{
+				LogErr(L"Error loading bmpGun !");
+				ErrExit(eD2D);
+			}
+
+			bmpLogoLevel = Load(L".\\res\\img\\logos\\level.png", Draw);
+			if (!bmpLogoLevel)
+			{
+				LogErr(L"Error loading bmpLogoLevel !");
+				ErrExit(eD2D);
+			}
+			bmpLogoLoose = Load(L".\\res\\img\\logos\\loose.png", Draw);
+			if (!bmpLogoLoose)
+			{
+				LogErr(L"Error loading bmpLogoLoose !");
+				ErrExit(eD2D);
+			}
+			bmpLogoWin = Load(L".\\res\\img\\logos\\win.png", Draw);
+			if (!bmpLogoWin)
+			{
+				LogErr(L"Error loading bmpLogoWin !");
+				ErrExit(eD2D);
+			}
+			bmpLogoRecord = Load(L".\\res\\img\\logos\\record.png", Draw);
+			if (!bmpLogoRecord)
+			{
+				LogErr(L"Error loading bmpLogoRecord !");
+				ErrExit(eD2D);
+			}
+
+			bmpBoulder = Load(L".\\res\\img\\field\\obstacles\\boulder.png", Draw);
+			if (!bmpBoulder)
+			{
+				LogErr(L"Error loading bmpBoulder !");
+				ErrExit(eD2D);
+			}
+			bmpRock = Load(L".\\res\\img\\field\\obstacles\\Rock.png", Draw);
+			if (!bmpRock)
+			{
+				LogErr(L"Error loading bmpRock !");
+				ErrExit(eD2D);
+			}
+			bmpTree1 = Load(L".\\res\\img\\field\\obstacles\\Tree1.png", Draw);
+			if (!bmpTree1)
+			{
+				LogErr(L"Error loading bmpTree1 !");
+				ErrExit(eD2D);
+			}
+			bmpTree2 = Load(L".\\res\\img\\field\\obstacles\\Tree2.png", Draw);
+			if (!bmpTree2)
+			{
+				LogErr(L"Error loading bmpTree2 !");
+				ErrExit(eD2D);
+			}
+			bmpTree3 = Load(L".\\res\\img\\field\\obstacles\\Tree3.png", Draw);
+			if (!bmpTree3)
+			{
+				LogErr(L"Error loading bmpTree3 !");
+				ErrExit(eD2D);
+			}
+			bmpDirt = Load(L".\\res\\img\\field\\tiles\\dirt.png", Draw);
+			if (!bmpDirt)
+			{
+				LogErr(L"Error loading bmpDirt !");
+				ErrExit(eD2D);
+			}
+			bmpGrass = Load(L".\\res\\img\\field\\tiles\\Grass.png", Draw);
+			if (!bmpGrass)
+			{
+				LogErr(L"Error loading bmpGrass !");
+				ErrExit(eD2D);
+			}
+			bmpGrassDirt = Load(L".\\res\\img\\field\\tiles\\Grass-dirt.png", Draw);
+			if (!bmpGrassDirt)
+			{
+				LogErr(L"Error loading bmpGrassDirt !");
+				ErrExit(eD2D);
+			}
+			bmpGrassFB = Load(L".\\res\\img\\field\\tiles\\Grass_flowers_blue.png", Draw);
+			if (!bmpGrassFB)
+			{
+				LogErr(L"Error loading bmpGrassFB !");
+				ErrExit(eD2D);
+			}
+			bmpGrassFR = Load(L".\\res\\img\\field\\tiles\\Grass_flowers_red.png", Draw);
+			if (!bmpGrassFR)
+			{
+				LogErr(L"Error loading bmpGrassFR !");
+				ErrExit(eD2D);
+			}
+
+			for (int i = 0; i < 106; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\intro\\0" };
+				wchar_t add[5]{ L"\0" };
+
+				if (i < 10)wcscat_s(name, L"00");
+				else if (i < 100)wcscat_s(name, L"0");
+
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+			
+				bmpIntro[i] = Load(name, Draw);
+				if (!bmpIntro[i])
+				{
+					LogErr(L"Error loading bmpIntro !");
+					ErrExit(eD2D);
+				}
+			}
+
+			for (int i = 0; i < 202; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\evils\\brain\\0" };
+				wchar_t add[5]{ L"\0" };
+
+				if (i < 10)wcscat_s(name, L"00");
+				else if (i < 100)wcscat_s(name, L"0");
+
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+
+				bmpBrain[i] = Load(name, Draw);
+				if (!bmpBrain[i])
+				{
+					LogErr(L"Error loading bmpBrain !");
+					ErrExit(eD2D);
+				}
+			}
+			for (int i = 0; i < 68; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\evils\\dervish\\0" };
+				wchar_t add[5]{ L"\0" };
+
+				if (i < 10)wcscat_s(name, L"0");
+				
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+
+				bmpDervish[i] = Load(name, Draw);
+				if (!bmpDervish[i])
+				{
+					LogErr(L"Error loading bmpDervish !");
+					ErrExit(eD2D);
+				}
+			}
+			for (int i = 0; i < 223; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\evils\\ghost\\0" };
+				wchar_t add[5]{ L"\0" };
+
+				if (i < 10)wcscat_s(name, L"00");
+				else if (i < 100)wcscat_s(name, L"0");
+
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+
+				bmpGhost[i] = Load(name, Draw);
+				if (!bmpGhost[i])
+				{
+					LogErr(L"Error loading bmpGhost !");
+					ErrExit(eD2D);
+				}
+			}
+			for (int i = 0; i < 120; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\evils\\soul\\0" };
+				wchar_t add[5]{ L"\0" };
+
+				if (i < 10)wcscat_s(name, L"00");
+				else if (i < 100)wcscat_s(name, L"0");
+
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+
+				bmpSoul[i] = Load(name, Draw);
+				if (!bmpSoul[i])
+				{
+					LogErr(L"Error loading bmpSoul !");
+					ErrExit(eD2D);
+				}
+			}
+
+			for (int i = 0; i < 2; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\hero\\hor\\" };
+				wchar_t add[5]{ L"\0" };
+
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+
+				bmpHeroHor[i] = Load(name, Draw);
+				if (!bmpHeroHor[i])
+				{
+					LogErr(L"Error loading bmpHeroHor !");
+					ErrExit(eD2D);
+				}
+			}
+			for (int i = 0; i < 2; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\hero\\ver\\up\\" };
+				wchar_t add[5]{ L"\0" };
+
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+
+				bmpHeroVerU[i] = Load(name, Draw);
+				if (!bmpHeroVerU[i])
+				{
+					LogErr(L"Error loading bmpHeroVerU !");
+					ErrExit(eD2D);
+				}
+			}
+			for (int i = 0; i < 2; ++i)
+			{
+				wchar_t name[150]{ L".\\res\\img\\hero\\ver\\down\\" };
+				wchar_t add[5]{ L"\0" };
+
+				wsprintf(add, L"%d", i);
+				wcscat_s(name, add);
+				wcscat_s(name, L".png");
+
+				bmpHeroVerD[i] = Load(name, Draw);
+				if (!bmpHeroVerD[i])
+				{
+					LogErr(L"Error loading bmpHeroVerD !");
+					ErrExit(eD2D);
+				}
+			}
 		}
 
+		hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), 
+			reinterpret_cast<IUnknown**>(&iWriteFactory));
+		if (hr != S_OK)
+		{
+			LogErr(L"Error creating main D2D1 WriteFactory !");
+			ErrExit(eD2D);
+		}
 
+		if (iWriteFactory)
+		{
+			hr = iWriteFactory->CreateTextFormat(L"GNABRI", nullptr, DWRITE_FONT_WEIGHT_EXTRA_BLACK,
+				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 16.0f, L"", &nrmFormat);
+			hr = iWriteFactory->CreateTextFormat(L"GNABRI", nullptr, DWRITE_FONT_WEIGHT_EXTRA_BLACK,
+				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 32.0f, L"", &nrmFormat);
+			hr = iWriteFactory->CreateTextFormat(L"GNABRI", nullptr, DWRITE_FONT_WEIGHT_EXTRA_BLACK,
+				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 76.0f, L"", &nrmFormat);
 
-
-
-
-
+			if (hr != S_OK)
+			{
+				LogErr(L"Error creating TextFormat");
+				ErrExit(eD2D);
+			}
+		}
 	}
 
+	PlaySound(L".\\res\\snd\\intro.wav", NULL, SND_ASYNC);
 
+	for (int i = 0; i < 340; ++i)
+	{
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpIntro[IntroFrame()], FullScreen);
+		if (bigFormat && txtBrush)Draw->DrawTextW(L"ПОЛЕ НА ДУХОВЕ", 15, bigFormat, 
+			D2D1::RectF(100.0f, 100.0f, scr_width, scr_height), txtBrush);
+		Draw->EndDraw();
+	}
+	Draw->BeginDraw();
+	Draw->DrawBitmap(bmpIntro[IntroFrame()], FullScreen);
+	if (bigFormat && txtBrush)Draw->DrawTextW(L"ПОЛЕ НА ДУХОВЕ", 15, bigFormat,
+		D2D1::RectF(100.0f, 100.0f, scr_width, scr_height), txtBrush);
+	Draw->EndDraw();
 
-
+	PlaySound(L".\\res\\snd\\boom.wav", NULL, SND_SYNC);
 }
-
-
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -622,6 +952,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	CreateGame();
 
 	PlaySound(snd_file, NULL, SND_ASYNC | SND_LOOP);
+
 
 
 	ClearResources();
