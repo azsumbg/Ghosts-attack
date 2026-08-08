@@ -43,8 +43,6 @@ HINSTANCE bIns{ nullptr };
 HICON bIcon{ nullptr };
 HCURSOR bCursor{ nullptr };
 HCURSOR outCursor{ nullptr };
-HDC PaintDC{ nullptr };
-PAINTSTRUCT bPaint{};
 HMENU bBar{ nullptr };
 HMENU bMain{ nullptr };
 HMENU bStore{ nullptr };
@@ -140,6 +138,13 @@ ID2D1Bitmap* bmpSoul[120]{ nullptr };
 
 //////////////////////////////////////////////////////
 
+dll::FIELD* Field{ nullptr };
+
+
+
+
+////////////////////////////////////////////////////////
+
 template<typename T>concept HasRelease = requires(T var)
 {
 	var.Release();
@@ -212,6 +217,383 @@ void ClearResources()
 	for (int i = 0; i < 223; ++i)if (!FreeMem(&bmpGhost[i]))LogErr(L"Error releasing D2D1 bmpGhost !");
 	for (int i = 0; i < 120; ++i)if (!FreeMem(&bmpSoul[i]))LogErr(L"Error releasing D2D1 bmpSoul !");
 }
+void ErrExit(int what)
+{
+	MessageBeep(MB_ICONERROR);
+	MessageBox(NULL, ErrHandle(what), L"Критична грешка !", MB_OK | MB_APPLMODAL | MB_ICONERROR);
+
+	ClearResources();
+	std::remove(tmp_file);
+	exit(1);
+}
+int IntroFrame()
+{
+	static int frame{ -1 };
+	++frame;
+	if (frame > 105)frame = 0;
+	return frame;
+}
+
+void GameOver()
+{
+	KillTimer(bHwnd, bTimer);
+	PlaySound(NULL, NULL, NULL);
+
+
+
+
+
+	bMsg.message = WM_QUIT;
+	bMsg.wParam = 0;
+}
+void InitGame()
+{
+	name_set = false;
+	level_skipped = false;
+
+	wcscpy_s(current_player, L"TARLYO");
+
+	level = 1.0f;
+
+	score = 0;
+	mins = 0;
+	secs = 0;
+
+
+	if (Field)
+	{
+		delete Field;
+		Field = new dll::FIELD{};
+	}
+
+
+}
+
+INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
+{
+	switch (ReceivedMsg)
+	{
+	case WM_INITDIALOG:
+		SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)(bIcon));
+		return true;
+
+	case WM_CLOSE:
+		EndDialog(hwnd, IDCANCEL);
+		break;
+
+	case WM_COMMAND:
+		switch (wParam)
+		{
+		case IDCANCEL:
+			EndDialog(hwnd, IDCANCEL);
+			break;
+
+		case IDOK:
+			if (GetDlgItemText(hwnd, IDC_NAME, current_player, 16) < 1)
+			{
+				wcscpy_s(current_player, L"TARLYO");
+				if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+				MessageBox(bHwnd, L"Ха, ха, ха ! Забрави си името !", L"Забраватор !", MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+				EndDialog(hwnd, IDCANCEL);
+				break;
+			}
+			EndDialog(hwnd, IDOK);
+			break;
+		}
+	}
+
+	return (INT_PTR)(FALSE);
+}
+LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
+{
+	switch (ReceivedMsg)
+	{
+	case WM_CREATE:
+		if (bIns)
+		{
+			SetTimer(hwnd, bTimer, 1000, NULL);
+
+			bBar = CreateMenu();
+			bMain = CreateMenu();
+			bStore = CreateMenu();
+
+			AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bMain), L"Основно меню");
+			AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bStore), L"Меню за данни");
+
+			AppendMenu(bMain, MF_STRING, mNew, L"Нова игра");
+			AppendMenu(bMain, MF_STRING, mSpeed, L"Следващо ниво");
+			AppendMenu(bMain, MF_SEPARATOR, NULL, NULL);
+			AppendMenu(bMain, MF_STRING, mExit, L"Изход");
+
+			AppendMenu(bStore, MF_STRING, mSave, L"Запази игра");
+			AppendMenu(bStore, MF_STRING, mLoad, L"Зареди игра");
+			AppendMenu(bStore, MF_SEPARATOR, NULL, NULL);
+			AppendMenu(bStore, MF_STRING, mHoF, L"Зала на славата");
+
+			SetMenu(hwnd, bBar);
+			InitGame();
+		}
+		break;
+
+	case WM_CLOSE:
+		pause = true;
+		if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+		if (MessageBox(hwnd, L"Ако излезеш, губиш тази игра !\n\nНаистина ли излизаш ?", L"Изход !",
+			MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)
+		{
+			pause = false;
+			break;
+		}
+		GameOver();
+		break;
+
+	case WM_SETCURSOR:
+		GetCursorPos(&cur_pos);
+		ScreenToClient(hwnd, &cur_pos);
+		if (LOWORD(lParam) == HTCLIENT)
+		{
+			if (!in_client)
+			{
+				in_client = true;
+				pause = false;
+			}
+
+			if (cur_pos.y * y_scale <= 50)
+			{
+				if (cur_pos.x * x_scale >= b1Rect.left && cur_pos.x * x_scale <= b1Rect.right)
+				{
+					if (!b1Hglt)
+					{
+						if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
+						b1Hglt = true;
+						b2Hglt = false;
+						b3Hglt = false;
+					}
+				}
+				else if (cur_pos.x * x_scale >= b2Rect.left && cur_pos.x * x_scale <= b2Rect.right)
+				{
+					if (!b2Hglt)
+					{
+						if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
+						b2Hglt = true;
+						b1Hglt = false;
+						b3Hglt = false;
+					}
+				}
+				else if (cur_pos.x * x_scale >= b3Rect.left && cur_pos.x * x_scale <= b3Rect.right)
+				{
+					if (!b3Hglt)
+					{
+						if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
+						b3Hglt = true;
+						b2Hglt = false;
+						b1Hglt = false;
+					}
+				}
+				else
+				{
+					if (b1Hglt || b2Hglt || b3Hglt)
+					{
+						if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
+						b3Hglt = false;
+						b2Hglt = false;
+						b1Hglt = false;
+					}
+				}
+
+				SetCursor(outCursor);
+				return true;
+			}
+			else if (b1Hglt || b2Hglt || b3Hglt)
+			{
+				if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
+				b3Hglt = false;
+				b2Hglt = false;
+				b1Hglt = false;
+			}
+
+			SetCursor(bCursor);
+
+			return true;
+		}
+		else
+		{
+			if (in_client)
+			{
+				in_client = false;
+				pause = true;
+			}
+
+			if (b1Hglt || b2Hglt || b3Hglt)
+			{
+				if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
+				b3Hglt = false;
+				b2Hglt = false;
+				b1Hglt = false;
+			}
+
+			SetCursor(LoadCursor(NULL, IDC_ARROW));
+
+			return true;
+		}
+		break;
+
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case mNew:
+			pause = true;
+			if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+			if (MessageBox(hwnd, L"Ако рестартираш, губиш тази игра !\n\nНаистина ли рестартираш ?", L"Рестарт !",
+				MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)
+			{
+				pause = false;
+				break;
+			}
+			InitGame();
+			break;
+
+		case mSpeed:
+			pause = true;
+			if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+			if (MessageBox(hwnd, L"Ако прескочиш нивото, губиш бонусите му !\n\nНаистина ли прескачаш ниво ?", L"Прескочи ниво !",
+				MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)
+			{
+				pause = false;
+				break;
+			}
+			level_skipped = true;
+			//LevelUp();
+			break;
+
+		case mExit:
+			SendMessage(hwnd, WM_CLOSE, NULL, NULL);
+			break;
+
+
+		}
+		break;
+
+	case WM_LBUTTONDOWN:
+		if (HIWORD(lParam) * y_scale <= 50)
+		{
+			if (LOWORD(lParam) * x_scale >= b1Rect.left && LOWORD(lParam) * x_scale <= b1Rect.right)
+			{
+				if (name_set)
+				{
+					if (sound)mciSendString(L"play.res\\snd\\negative.wav", NULL, NULL, NULL);
+					break;
+				}
+
+				if (sound)mciSendString(L"play.res\\snd\\select.wav", NULL, NULL, NULL);
+
+				if (DialogBox(bIns, MAKEINTRESOURCE(IDD_PLAYER), hwnd, &DlgProc) == IDOK)name_set = true;
+			}
+			else if (LOWORD(lParam) * x_scale >= b2Rect.left && LOWORD(lParam) * x_scale <= b2Rect.right)
+			{
+				mciSendString(L"play.res\\snd\\select.wav", NULL, NULL, NULL);
+
+				if (sound)
+				{
+					sound = false;
+					PlaySound(NULL, NULL, NULL);
+					break;
+				}
+				else
+				{
+					sound = true;
+					PlaySound(snd_file, NULL, SND_ASYNC | SND_LOOP);
+					break;
+				}
+			}
+			else if (LOWORD(lParam) * x_scale >= b3Rect.left && LOWORD(lParam) * x_scale <= b3Rect.right)
+			{
+				if (sound)mciSendString(L"play.res\\snd\\select.wav", NULL, NULL, NULL);
+			}
+		}
+		break;
+
+	default: return DefWindowProc(hwnd, ReceivedMsg, wParam, lParam);
+	}
+
+	return (LRESULT)(FALSE);
+}
+
+void CreateGame()
+{
+	int win_x = GetSystemMetrics(SM_CXSCREEN) / 2 - (int)(scr_width / 2.0f);
+	int win_y = 10;
+	int result{ 0 };
+
+	CheckFile(Ltmp_file, &result);
+	if (result == FILE_EXIST)ErrExit(eStarted);
+	else
+	{
+		std::wofstream start{ Ltmp_file };
+		start << L"Game started at: " << std::chrono::system_clock::now();
+		start.close();
+	}
+
+	if (GetSystemMetrics(SM_CXSCREEN) < win_x + (int)(scr_width) ||
+		GetSystemMetrics(SM_CYSCREEN) < win_y + (int)(scr_height))ErrExit(eScreen);
+
+	bIcon = (HICON)(LoadImage(NULL, L".\\res\\main.ico", IMAGE_ICON, 255, 255, LR_LOADFROMFILE));
+	if (!bIcon)ErrExit(eIcon);
+	bCursor = LoadCursorFromFileW(L".\\res\\main.ani");
+	outCursor = LoadCursorFromFileW(L".\\res\\out.ani");
+	if (!bCursor || !outCursor)ErrExit(eCursor);
+
+	bWinClass.lpszClassName = bWinClassName;
+	bWinClass.hInstance = bIns;
+	bWinClass.lpfnWndProc = &WinProc;
+	bWinClass.hbrBackground = CreateSolidBrush(RGB(10, 10, 10));
+	bWinClass.hIcon = bIcon;
+	bWinClass.hCursor = bCursor;
+	bWinClass.style = CS_DROPSHADOW;
+
+	if (!RegisterClass(&bWinClass))ErrExit(eClass);
+
+	bHwnd = CreateWindow(bWinClassName, L"ПОЛЕ НА ДУХОВЕ", WS_CAPTION | WS_SYSMENU, win_x, win_y, (int)(scr_width), 
+		(int)(scr_height), NULL, NULL, bIns, NULL);
+
+	if (!bHwnd)ErrExit(eWindow);
+	else
+	{
+		ShowWindow(bHwnd, SW_SHOWDEFAULT);
+
+		HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &iFactory);
+		if (hr != S_OK)
+		{
+			LogErr(L"Error creating main D2D1 Factory !");
+			ErrExit(eD2D);
+		}
+
+		if (iFactory)
+		{
+			hr = iFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(bHwnd,
+				D2D1::SizeU(UINT32(scr_width), UINT32(scr_height))), &Draw);
+			if (hr != S_OK)
+			{
+				LogErr(L"Error creating main D2D1 HwndRenderTarget !");
+				ErrExit(eD2D);
+			}
+		}
+
+		if (Draw)
+		{
+			RECT scrRect{};
+			D2D1_SIZE_F hwndRect{ Draw->GetSize() };
+			GetClientRect(bHwnd, &scrRect);
+
+			x_scale = hwndRect.width / (scrRect.right - scrRect.left);
+			y_scale = hwndRect.height / (scrRect.bottom - scrRect.top);
+
+
+
+
+
+
+		}
 
 
 
@@ -219,17 +601,31 @@ void ClearResources()
 
 
 
+	}
+
+
+
+
+}
 
 
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
 	bIns = hInstance;
+	if (!bIns)
+	{
+		LogErr(L"Error obtaining hInstance from Windows !");
+		ErrExit(eClass);
+	}
+
+	CreateGame();
+
+	PlaySound(snd_file, NULL, SND_ASYNC | SND_LOOP);
 
 
+	ClearResources();
+	std::remove(tmp_file);
 
-
-
-
-    return (int) msg.wParam;
+    return (int) bMsg.wParam;
 }
