@@ -62,9 +62,9 @@ D2D1_RECT_F b1Rect{ 30.0f, 10.0f, scr_width / 3.0f - 30.0f, 40.0f };
 D2D1_RECT_F b2Rect{ scr_width / 3.0f + 30.0f, 10.0f, scr_width * 2.0f / 3.0f - 30.0f, 40.0f };
 D2D1_RECT_F b3Rect{ scr_width * 2.0f / 3.0f + 30.0f, 10.0f, scr_width - 30.0f, 40.0f };
 
-D2D1_RECT_F b1TxtRect{ 50.0f, 15.0f, scr_width / 3.0f - 30.0f, 40.0f };
-D2D1_RECT_F b2TxtRect{ scr_width / 3.0f + 50.0f, 15.0f, scr_width * 2.0f / 3.0f - 30.0f, 40.0f };
-D2D1_RECT_F b3TxtRect{ scr_width * 2.0f / 3.0f + 40.0f, 15.0f, scr_width - 30.0f, 40.0f };
+D2D1_RECT_F b1TxtRect{ 80.0f, 15.0f, scr_width / 3.0f - 30.0f, 40.0f };
+D2D1_RECT_F b2TxtRect{ scr_width / 3.0f + 80.0f, 15.0f, scr_width * 2.0f / 3.0f - 30.0f, 40.0f };
+D2D1_RECT_F b3TxtRect{ scr_width * 2.0f / 3.0f + 60.0f, 15.0f, scr_width - 30.0f, 40.0f };
 
 bool pause{ false };
 bool sound{ true };
@@ -260,13 +260,9 @@ void InitGame()
 	secs = 0;
 
 
-	if (Field)
-	{
-		delete Field;
-		Field = new dll::FIELD{};
-	}
-
-
+	if (Field)delete Field;
+	Field = new dll::FIELD{};
+	
 }
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -909,9 +905,9 @@ void CreateGame()
 			hr = iWriteFactory->CreateTextFormat(L"GNABRI", nullptr, DWRITE_FONT_WEIGHT_EXTRA_BLACK,
 				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 16.0f, L"", &nrmFormat);
 			hr = iWriteFactory->CreateTextFormat(L"GNABRI", nullptr, DWRITE_FONT_WEIGHT_EXTRA_BLACK,
-				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 32.0f, L"", &nrmFormat);
+				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 32.0f, L"", &midFormat);
 			hr = iWriteFactory->CreateTextFormat(L"GNABRI", nullptr, DWRITE_FONT_WEIGHT_EXTRA_BLACK,
-				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 76.0f, L"", &nrmFormat);
+				DWRITE_FONT_STYLE_OBLIQUE, DWRITE_FONT_STRETCH_NORMAL, 76.0f, L"", &bigFormat);
 
 			if (hr != S_OK)
 			{
@@ -928,13 +924,13 @@ void CreateGame()
 		Draw->BeginDraw();
 		Draw->DrawBitmap(bmpIntro[IntroFrame()], FullScreen);
 		if (bigFormat && txtBrush)Draw->DrawTextW(L"ПОЛЕ НА ДУХОВЕ", 15, bigFormat, 
-			D2D1::RectF(100.0f, 100.0f, scr_width, scr_height), txtBrush);
+			D2D1::RectF(150.0f, ground - 100.0f, scr_width, scr_height), txtBrush);
 		Draw->EndDraw();
 	}
 	Draw->BeginDraw();
 	Draw->DrawBitmap(bmpIntro[IntroFrame()], FullScreen);
 	if (bigFormat && txtBrush)Draw->DrawTextW(L"ПОЛЕ НА ДУХОВЕ", 15, bigFormat,
-		D2D1::RectF(100.0f, 100.0f, scr_width, scr_height), txtBrush);
+		D2D1::RectF(150.0f, ground - 100.0f, scr_width, scr_height), txtBrush);
 	Draw->EndDraw();
 
 	PlaySound(L".\\res\\snd\\boom.wav", NULL, SND_SYNC);
@@ -953,7 +949,113 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 	PlaySound(snd_file, NULL, SND_ASYNC | SND_LOOP);
 
+	while (bMsg.message != WM_QUIT)
+	{
+		if ((bRet = PeekMessage(&bMsg, NULL, NULL, NULL, PM_REMOVE)) != 0)
+		{
+			if (bRet == -1)ErrExit(eMsg);
 
+			TranslateMessage(&bMsg);
+			DispatchMessage(&bMsg);
+		}
+
+		if (pause)
+		{
+			if (show_help)continue;
+
+			Draw->BeginDraw();
+			Draw->DrawBitmap(bmpIntro[IntroFrame()], FullScreen);
+			if (bigFormat && txtBrush)Draw->DrawTextW(L"ПАУЗА", 6, bigFormat, D2D1::RectF(scr_width / 2.0f - 100.0f, 
+				ground - 100.0f, scr_width, scr_height), txtBrush);
+			Draw->EndDraw();
+			continue;
+		}
+
+	////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// DRAW THINGS *********************************************
+
+		Draw->BeginDraw();
+
+		if (Field)
+		{
+			for (int rows = 0; rows < MAX_FIELD_ROWS; ++rows)
+			{
+				for (int cols = 0; cols < MAX_FIELD_COLS; ++cols)
+				{
+					dll::TILE tile{ Field->get_tile(rows,cols) };
+
+					switch (tile.type)
+					{
+					case tiles::grass:
+						Draw->DrawBitmap(bmpGrass, tile.rect);
+						break;
+
+					case tiles::grass_blue:
+						Draw->DrawBitmap(bmpGrassFB, tile.rect);
+						break;
+
+					case tiles::grass_red:
+						Draw->DrawBitmap(bmpGrassFR, tile.rect);
+						break;
+
+					case tiles::dirt:
+						Draw->DrawBitmap(bmpDirt, tile.rect);
+						break;
+
+					case tiles::grass_dirt:
+						Draw->DrawBitmap(bmpGrassDirt, tile.rect);
+						break;
+					}
+				}
+			}
+		}
+
+		if (nrmFormat && statBrush && txtBrush && inactBrush && hgltBrush && b1BckgBrush && b2BckgBrush && b3BckgBrush)
+		{
+			Draw->FillRectangle(D2D1::RectF(0, 0, scr_width, 50.0f), statBrush);
+			Draw->FillRoundedRectangle(D2D1::RoundedRect(b1Rect, 10.0f, 15.0f), b1BckgBrush);
+			Draw->FillRoundedRectangle(D2D1::RoundedRect(b2Rect, 10.0f, 15.0f), b2BckgBrush);
+			Draw->FillRoundedRectangle(D2D1::RoundedRect(b3Rect, 10.0f, 15.0f), b3BckgBrush);
+
+			if (name_set)Draw->DrawTextW(L"ИМЕ НА ГЕРОЙ", 13, nrmFormat, b1TxtRect, inactBrush);
+			else
+			{
+				if(!b1Hglt)Draw->DrawTextW(L"ИМЕ НА ГЕРОЙ", 13, nrmFormat, b1TxtRect, txtBrush);
+				else Draw->DrawTextW(L"ИМЕ НА ГЕРОЙ", 13, nrmFormat, b1TxtRect, hgltBrush);
+			}
+			if (!b2Hglt)Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2TxtRect, txtBrush);
+			else Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2TxtRect, hgltBrush);
+			if (!b3Hglt)Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3TxtRect, txtBrush);
+			else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3TxtRect, hgltBrush);
+		}
+		////////////////////////////////////////////////////////
+
+
+
+
+
+
+	////////////////////////////////////////////////////////////
+
+		Draw->EndDraw();
+
+	}
 
 	ClearResources();
 	std::remove(tmp_file);
