@@ -470,8 +470,8 @@ namespace dll
 
 		int frame = 0;
 		int max_frames = 1;
-		int frame_delay = 30;
-		int max_frame_delay = 3;
+		int frame_delay = 20;
+		int max_frame_delay = 20;
 
 		bool hor_dir = false;
 		bool ver_dir = false;

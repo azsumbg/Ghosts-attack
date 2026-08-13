@@ -138,7 +138,12 @@ ID2D1Bitmap* bmpSoul[120]{ nullptr };
 
 //////////////////////////////////////////////////////
 
+dll::RANDIT RandIt{};
+
 dll::FIELD* Field{ nullptr };
+
+dll::HERO* Hero{ nullptr };
+
 
 
 
@@ -259,10 +264,12 @@ void InitGame()
 	mins = 0;
 	secs = 0;
 
-
 	if (Field)delete Field;
 	Field = new dll::FIELD{};
 	
+	FreeMem(&Hero);
+	Hero = dll::HERO::create(RandIt(50.0f, scr_width - 100.0f), ground - 100.0f);
+
 }
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -508,6 +515,7 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			}
 		}
 		break;
+
 
 	default: return DefWindowProc(hwnd, ReceivedMsg, wParam, lParam);
 	}
@@ -1044,8 +1052,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			if (!b3Hglt)Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3TxtRect, txtBrush);
 			else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3TxtRect, hgltBrush);
 		}
+		
 		////////////////////////////////////////////////////////
 
+		if (Hero)
+		{
+
+			if (Hero->angle == 0)Draw->DrawBitmap(bmpHeroVerU[Hero->get_frame()], Hero->get_rect());
+			else if (Hero->angle == 180.0f)Draw->DrawBitmap(bmpHeroVerD[Hero->get_frame()], Hero->get_rect());
+			else Draw->DrawBitmap(bmpHeroHor[Hero->get_frame()], Hero->get_rect(), Hero->angle);
+		}
 
 
 
