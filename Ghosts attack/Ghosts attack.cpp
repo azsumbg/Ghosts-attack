@@ -143,9 +143,11 @@ dll::RANDIT RandIt{};
 dll::FIELD* Field{ nullptr };
 
 dll::HERO* Hero{ nullptr };
+dirs nature_dir{ dirs::stop };
 
 
-
+std::vector<dll::OBSTACLE*> vObstacles;
+std::vector<dll::EVILS*>vEvils;
 
 
 ////////////////////////////////////////////////////////
@@ -264,11 +266,53 @@ void InitGame()
 	mins = 0;
 	secs = 0;
 
+	nature_dir = dirs::stop;
+
 	if (Field)delete Field;
 	Field = new dll::FIELD{};
 	
 	FreeMem(&Hero);
 	Hero = dll::HERO::create(RandIt(50.0f, scr_width - 100.0f), ground - 100.0f);
+
+	for (int i = 0; i < vEvils.size(); ++i)FreeMem(&vEvils[i]);
+
+	for (int i = 0; i < vObstacles.size(); ++i)FreeMem(&vObstacles[i]);
+	for (int count = 0; count < 15; ++count)
+	{
+		bool ok = false;
+
+		while (!ok)
+		{
+			ok = true;
+			
+			float sx{ RandIt(-50.0f,scr_width + 50.0f) };
+			float sy{ RandIt(0.0f,scr_height) };
+
+			dll::OBSTACLE* dummy{ dll::OBSTACLE::create(static_cast<obstacles>(RandIt(0,4)), sx, sy) };
+
+			if (Hero)
+			{
+				if (dll::Intersect(Hero->get_rect(), dummy->get_rect()))
+				{
+					ok = false;
+					break;
+				}
+			}
+			if (!vObstacles.empty())
+			{
+				for (int i = 0; i < vObstacles.size(); ++i)
+				{
+					if (dll::Intersect(vObstacles[i]->get_rect(), dummy->get_rect()))
+					{
+						ok = false;
+						break;
+					}
+				}
+			}
+
+			if (ok)vObstacles.push_back(dummy);
+		}
+	}
 
 }
 
@@ -981,7 +1025,62 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 	////////////////////////////////////////////////////////
 
+	// HERO ******************************************
 
+		if (Hero)
+		{
+			switch (Hero->dir)
+			{
+			case dirs::down:
+				nature_dir = dirs::up;
+				break;
+
+			case dirs::up:
+				nature_dir = dirs::down;
+				break;
+
+			case dirs::left:
+				nature_dir = dirs::right;
+				break;
+
+			case dirs::right:
+				nature_dir = dirs::left;
+				break;
+
+			case dirs::down_left:
+				nature_dir = dirs::up_right;
+				break;
+
+			case dirs::down_right:
+				nature_dir = dirs::up_left;
+				break;
+
+			case dirs::up_left:
+				nature_dir = dirs::down_right;
+				break;
+
+			case dirs::up_right:
+				nature_dir = dirs::down_left;
+				break;
+
+			default:nature_dir = dirs::stop;
+			}
+
+		}
+
+	///////////////////////////////////////////////////////
+
+	// OBSTACLES ******************************************
+
+		if (!vObstacles.empty())
+		{
+			for (std::vector<dll::OBSTACLE*>::iterator it = vObstacles.begin(); it < vObstacles.end(); ++it)
+			{
+				(*it)->move(level, nature_dir);
+			}
+		}
+
+	///////////////////////////////////////////////////////
 
 
 
@@ -1030,6 +1129,37 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 						Draw->DrawBitmap(bmpGrassDirt, tile.rect);
 						break;
 					}
+				}
+			}
+		}
+
+		if (!vObstacles.empty())
+		{
+			for (std::vector<dll::OBSTACLE*>::iterator it = vObstacles.begin(); it < vObstacles.end(); ++it)
+			{
+				switch ((*it)->type)
+				{
+				case obstacles::tree1:
+					Draw->DrawBitmap(bmpTree1, (*it)->get_rect());
+					break;
+
+				case obstacles::tree2:
+					Draw->DrawBitmap(bmpTree2, (*it)->get_rect());
+					break;
+
+				case obstacles::tree3:
+					Draw->DrawBitmap(bmpTree3, (*it)->get_rect());
+					break;
+
+				case obstacles::rock:
+					Draw->DrawBitmap(bmpRock, (*it)->get_rect());
+					break;
+
+				case obstacles::boulder:
+					Draw->DrawBitmap(bmpBoulder, (*it)->get_rect());
+					break;
+
+
 				}
 			}
 		}

@@ -487,10 +487,11 @@ namespace dll
 		HERO(float _sx, float _sy);
 
 	public:
+		dirs dir = dirs::stop;
 		float angle{ 0 };
 
 		int lifes = 150;
-		int damage = 20;
+		int damage = 20; 
 		int armor = 1;
 
 		void set_path(float targ_x, float targ_y);
