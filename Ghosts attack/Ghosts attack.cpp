@@ -560,6 +560,32 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 		}
 		break;
 
+	case WM_RBUTTONDOWN:
+		if (Hero)
+		{
+			Hero->set_path(LOWORD(lParam) * x_scale, HIWORD(lParam) * y_scale);
+			Hero->set_view_angle();
+			Hero->move(level);
+		}
+		break;
+
+	case WM_KEYDOWN:
+		switch (LOWORD(wParam))
+		{
+		case VK_SHIFT:
+			if (Hero)Hero->dir = dirs::stop;
+			break;
+
+		case VK_SPACE:
+			if (!pause)
+			{
+				pause = true;
+				break;
+			}
+			else pause = false;
+			break;
+		}
+		break;
 
 	default: return DefWindowProc(hwnd, ReceivedMsg, wParam, lParam);
 	}
@@ -1066,11 +1092,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			default:nature_dir = dirs::stop;
 			}
 
+			if (Hero->dir != dirs::stop)Hero->move(level);
 		}
 
 	///////////////////////////////////////////////////////
 
-	// OBSTACLES ******************************************
+	// OBSTACLES && FIELD ******************************************
 
 		if (!vObstacles.empty())
 		{
@@ -1079,6 +1106,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				(*it)->move(level, nature_dir);
 			}
 		}
+
+		if (Field)Field->move(level, nature_dir);
 
 	///////////////////////////////////////////////////////
 
@@ -1187,10 +1216,53 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 		if (Hero)
 		{
-
 			if (Hero->angle == 0)Draw->DrawBitmap(bmpHeroVerU[Hero->get_frame()], Hero->get_rect());
 			else if (Hero->angle == 180.0f)Draw->DrawBitmap(bmpHeroVerD[Hero->get_frame()], Hero->get_rect());
-			else Draw->DrawBitmap(bmpHeroHor[Hero->get_frame()], Hero->get_rect(), Hero->angle);
+			else
+			{
+				if (Hero->get_target_y() >= Hero->start.y && Hero->get_target_y() <= Hero->end.y)
+				{
+					D2D1::Matrix3x2F flip{ D2D1::Matrix3x2F::Identity() };
+					
+					if (Hero->get_target_x() < Hero->center.x)
+					{
+						flip = D2D1::Matrix3x2F::Scale(-1.0f, 1.0f, Hero->center);
+						if (Hero->center.x <= Hero->get_target_x())Hero->dir = dirs::stop;
+					}
+					else if (Hero->get_target_x() > Hero->center.x)
+					{
+						flip = D2D1::Matrix3x2F::Scale(1.0f, 1.0f, Hero->center);
+						if (Hero->center.x >= Hero->get_target_x())Hero->dir = dirs::stop;
+					}
+	
+					Draw->SetTransform(flip);
+					Draw->DrawBitmap(bmpHeroHor[Hero->get_frame()], Hero->get_rect());
+					Draw->SetTransform(D2D1::Matrix3x2F::Identity());
+
+				}
+				else
+				{
+					D2D1::Matrix3x2F flip{ D2D1::Matrix3x2F::Identity() };
+					D2D1::Matrix3x2F rot{ D2D1::Matrix3x2F::Rotation(Hero->angle, Hero->center) };
+
+					if (Hero->get_target_x() < Hero->center.x)
+					{
+						flip = D2D1::Matrix3x2F::Scale(-1.0f, 1.0f, Hero->center);
+						if (Hero->center.x <= Hero->get_target_x())Hero->dir = dirs::stop;
+					}
+					else if (Hero->get_target_x() > Hero->center.x)
+					{
+						flip = D2D1::Matrix3x2F::Scale(1.0f, 1.0f, Hero->center);
+						if (Hero->center.x >= Hero->get_target_x())Hero->dir = dirs::stop;
+					}
+					
+					D2D1::Matrix3x2F current_matrix = flip * rot;
+
+					Draw->SetTransform(current_matrix);
+					Draw->DrawBitmap(bmpHeroHor[Hero->get_frame()], Hero->get_rect());
+					Draw->SetTransform(D2D1::Matrix3x2F::Identity());
+				}
+			}
 		}
 
 
