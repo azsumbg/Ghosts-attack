@@ -148,7 +148,7 @@ dirs nature_dir{ dirs::stop };
 
 std::vector<dll::OBSTACLE*> vObstacles;
 std::vector<dll::EVILS*>vEvils;
-
+std::vector<dll::FADING>vAssets;
 
 ////////////////////////////////////////////////////////
 
@@ -314,6 +314,7 @@ void InitGame()
 		}
 	}
 
+	vAssets.clear();
 }
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -1129,10 +1130,63 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 	///////////////////////////////////////////////////////
 
+	// EVILS *********************************************
+		
+		if (vEvils.size() < 4 + (int)(level) && RandIt(0, 300) == 66)
+		{
+			dll::EVILS* dummy{ nullptr };
 
+			float sx = -100.0f;
+			float sy = 0;
 
+			if (RandIt(0, 3) == 2)sx = scr_width;
+			if (RandIt(0, 3) == 1)sy = scr_height;
 
+			dummy = dll::EVILS::create(static_cast<evils>(RandIt(0, 3)), sx, sy);
 
+			bool ok = true;
+
+			if (!vObstacles.empty())
+			{
+				for (int i = 0; i < vObstacles.size(); ++i)
+				{
+					if (dll::Intersect(vObstacles[i]->get_rect(), dummy->get_rect()))
+					{
+						ok = false;
+						break;
+					}
+				}
+			}
+
+			if (ok)
+			{
+				vEvils.push_back(dummy);
+				if (sound)mciSendString(L"play .\\res\\snd\\evilborn.wav", NULL, NULL, NULL);
+			}
+		}
+
+		if (!vEvils.empty() && Hero)
+		{
+			for (std::vector<dll::EVILS*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				dll::BAG<D2D1_POINT_2F> assets(vAssets.size());
+				dll::BAG<D2D1_RECT_F> obstacles(vObstacles.size());
+
+				if (!vAssets.empty())for (int i = 0; i < vAssets.size(); ++i)
+					assets.push_back(D2D1::Point2F(vAssets[i].rect.left, vAssets[i].rect.top));
+				if (!vObstacles.empty())for (int i = 0; i < vObstacles.size(); ++i)obstacles.push_back(vObstacles[i]->get_rect());
+
+				actions what_to_do{ (*evil)->AIMove(assets,obstacles,Hero->center) };
+				
+				if (what_to_do != actions::attack)(*evil)->move(level);
+				else
+				{
+
+				}
+			}
+		}
+
+	/////////////////////////////////////////////////////
 
 
 
@@ -1287,7 +1341,42 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vEvils.empty())
+		{
+			for (int i = 0; i < vEvils.size(); ++i)
+			{
+				switch (vEvils[i]->type)
+				{
+				case evils::brain:
+					{
+						int frame = vEvils[i]->get_frame();
+						Draw->DrawBitmap(bmpBrain[frame], Resizer(bmpBrain[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+					}
+				break;
 
+				case evils::dervish:
+				{
+					int frame = vEvils[i]->get_frame();
+					Draw->DrawBitmap(bmpDervish[frame], Resizer(bmpDervish[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+				}
+				break;
+
+				case evils::ghost:
+				{
+					int frame = vEvils[i]->get_frame();
+					Draw->DrawBitmap(bmpGhost[frame], Resizer(bmpGhost[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+				}
+				break;
+
+				case evils::soul:
+				{
+					int frame = vEvils[i]->get_frame();
+					Draw->DrawBitmap(bmpSoul[frame], Resizer(bmpSoul[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+				}
+				break;
+				}
+			}
+		}
 
 
 
