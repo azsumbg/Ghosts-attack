@@ -1092,7 +1092,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			default:nature_dir = dirs::stop;
 			}
 
-			if (Hero->dir != dirs::stop)Hero->move(level);
+			if (Hero->dir != dirs::stop)Hero->move(level);	
 		}
 
 	///////////////////////////////////////////////////////
@@ -1108,6 +1108,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		}
 
 		if (Field)Field->move(level, nature_dir);
+
+		if (!vObstacles.empty() && Hero)
+		{
+			if (Hero->dir != dirs::stop)
+				for (int i = 0; i < vObstacles.size(); ++i)
+				{
+					if (dll::Intersect(Hero->get_rect(), vObstacles[i]->get_rect()))
+					{
+						if (Hero->start.x > vObstacles[i]->start.x && Hero->start.x <= vObstacles[i]->end.x)Hero->start.x++;
+						if (Hero->end.x >= vObstacles[i]->start.x && Hero->end.x <= vObstacles[i]->end.x)Hero->start.x--;
+						if (Hero->start.y > vObstacles[i]->start.x && Hero->start.y <= vObstacles[i]->end.y)Hero->start.y++;
+						if (Hero->end.y >= vObstacles[i]->start.y && Hero->end.y <= vObstacles[i]->end.y)Hero->start.y--;
+
+						Hero->set_edges();
+						Hero->dir = dirs::stop;
+					}
+				}
+		}
 
 	///////////////////////////////////////////////////////
 
@@ -1216,8 +1234,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 		if (Hero)
 		{
-			if (Hero->angle == 0)Draw->DrawBitmap(bmpHeroVerU[Hero->get_frame()], Hero->get_rect());
-			else if (Hero->angle == 180.0f)Draw->DrawBitmap(bmpHeroVerD[Hero->get_frame()], Hero->get_rect());
+			if (Hero->angle == 0)
+			{
+				if (Hero->start.y <= Hero->get_target_y())Hero->dir = dirs::stop;
+				Draw->DrawBitmap(bmpHeroVerU[Hero->get_frame()], Hero->get_rect());
+			}
+			else if (Hero->angle == 180.0f)
+			{
+				if (Hero->start.y >= Hero->get_target_y())Hero->dir = dirs::stop;
+				Draw->DrawBitmap(bmpHeroVerD[Hero->get_frame()], Hero->get_rect());
+			}
 			else
 			{
 				if (Hero->get_target_y() >= Hero->start.y && Hero->get_target_y() <= Hero->end.y)
@@ -1227,12 +1253,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 					if (Hero->get_target_x() < Hero->center.x)
 					{
 						flip = D2D1::Matrix3x2F::Scale(-1.0f, 1.0f, Hero->center);
-						if (Hero->center.x <= Hero->get_target_x())Hero->dir = dirs::stop;
 					}
 					else if (Hero->get_target_x() > Hero->center.x)
 					{
 						flip = D2D1::Matrix3x2F::Scale(1.0f, 1.0f, Hero->center);
-						if (Hero->center.x >= Hero->get_target_x())Hero->dir = dirs::stop;
 					}
 	
 					Draw->SetTransform(flip);
@@ -1248,12 +1272,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 					if (Hero->get_target_x() < Hero->center.x)
 					{
 						flip = D2D1::Matrix3x2F::Scale(-1.0f, 1.0f, Hero->center);
-						if (Hero->center.x <= Hero->get_target_x())Hero->dir = dirs::stop;
 					}
 					else if (Hero->get_target_x() > Hero->center.x)
 					{
 						flip = D2D1::Matrix3x2F::Scale(1.0f, 1.0f, Hero->center);
-						if (Hero->center.x >= Hero->get_target_x())Hero->dir = dirs::stop;
 					}
 					
 					D2D1::Matrix3x2F current_matrix = flip * rot;
