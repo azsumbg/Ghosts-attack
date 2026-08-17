@@ -537,7 +537,7 @@ namespace dll
 
 		void Release();
 
-		SHOT* create(float sx, float sy, float ex, float ey);
+		static SHOT* create(float sx, float sy, float ex, float ey);
 	};
 
 	class PLATSRV_API OBSTACLE :public PROTON

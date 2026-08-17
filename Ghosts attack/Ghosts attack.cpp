@@ -85,6 +85,9 @@ int score = 0;
 int mins = 0;
 int secs = 0;
 
+bool hero_killed = false;
+D2D1_RECT_F RIPRect{};
+
 ID2D1Factory* iFactory{ nullptr };
 ID2D1HwndRenderTarget* Draw{ nullptr };
 
@@ -107,6 +110,7 @@ ID2D1Bitmap* bmpArmor{ nullptr };
 ID2D1Bitmap* bmpChest{ nullptr };
 ID2D1Bitmap* bmpLife{ nullptr };
 ID2D1Bitmap* bmpGun{ nullptr };
+ID2D1Bitmap* bmpRIP{ nullptr };
 
 ID2D1Bitmap* bmpLogoLevel{ nullptr };
 ID2D1Bitmap* bmpLogoWin{ nullptr };
@@ -149,6 +153,8 @@ dirs nature_dir{ dirs::stop };
 std::vector<dll::OBSTACLE*> vObstacles;
 std::vector<dll::EVILS*>vEvils;
 std::vector<dll::FADING>vAssets;
+std::vector<dll::SHOT*> vEvilShots;
+std::vector<dll::SHOT*> vHeroShots;
 
 ////////////////////////////////////////////////////////
 
@@ -190,6 +196,7 @@ void ClearResources()
 	if (!FreeMem(&midFormat))LogErr(L"Error releasing D2D1 midFormat !");
 	if (!FreeMem(&bigFormat))LogErr(L"Error releasing D2D1 bigFormat !");
 
+	if (!FreeMem(&bmpRIP))LogErr(L"Error releasing D2D1 bmpRIP !");
 	if (!FreeMem(&bmpShot))LogErr(L"Error releasing D2D1 bmpShot !");
 	if (!FreeMem(&bmpArmor))LogErr(L"Error releasing D2D1 bmpArmor !");
 	if (!FreeMem(&bmpChest))LogErr(L"Error releasing D2D1 bmpChest !");
@@ -315,6 +322,9 @@ void InitGame()
 	}
 
 	vAssets.clear();
+
+	for (int i = 0; i < vEvilShots.size(); ++i)FreeMem(&vEvilShots[i]);
+	for (int i = 0; i < vHeroShots.size(); ++i)FreeMem(&vHeroShots[i]);
 }
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -559,6 +569,11 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 				if (sound)mciSendString(L"play.res\\snd\\select.wav", NULL, NULL, NULL);
 			}
 		}
+		else if (Hero)
+		{
+			vHeroShots.push_back(dll::SHOT::create(Hero->center.x, Hero->center.y, LOWORD(lParam), HIWORD(lParam)));
+			if (sound)mciSendString(L"play .\\res\\snd\\shot.wav", NULL, NULL, NULL);
+		}
 		break;
 
 	case WM_RBUTTONDOWN:
@@ -708,6 +723,12 @@ void CreateGame()
 				FreeMem(&gColl);
 			}
 
+			bmpRIP = Load(L".\\res\\img\\RIP.png", Draw);
+			if (!bmpRIP)
+			{
+				LogErr(L"Error loading bmpRIP !");
+				ErrExit(eD2D);
+			}
 			bmpShot = Load(L".\\res\\img\\shot.png", Draw);
 			if (!bmpShot)
 			{
@@ -1175,14 +1196,68 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				if (!vAssets.empty())for (int i = 0; i < vAssets.size(); ++i)
 					assets.push_back(D2D1::Point2F(vAssets[i].rect.left, vAssets[i].rect.top));
 				if (!vObstacles.empty())for (int i = 0; i < vObstacles.size(); ++i)obstacles.push_back(vObstacles[i]->get_rect());
-
-				actions what_to_do{ (*evil)->AIMove(assets,obstacles,Hero->center) };
 				
-				if (what_to_do != actions::attack)(*evil)->move(level);
+				if ((*evil)->AIMove(assets, obstacles, Hero->center) != actions::attack)(*evil)->move(level);
 				else
 				{
+					int dam = (*evil)->attack();
 
+					if (dam > 0)
+					{
+						vEvilShots.push_back(dll::SHOT::create((*evil)->center.x, (*evil)->center.y, Hero->center.x, 
+							Hero->center.y));
+						vEvilShots.back()->damage = dam;
+						if (sound)mciSendString(L"play .\\res\\snd\\evilatt.wav", NULL, NULL, NULL);
+					}
 				}
+			}
+		}
+
+		if (!vEvilShots.empty() && Hero)
+		{
+			for (std::vector<dll::SHOT*>::iterator shot = vEvilShots.begin(); shot < vEvilShots.end(); ++shot)
+			{
+				if (!(*shot)->move(level))
+				{
+					(*shot)->Release();
+					vEvilShots.erase(shot);
+					break;
+				}
+				else
+				{
+					if (dll::Intersect(Hero->get_rect(), (*shot)->get_rect()))
+					{
+						Hero->lifes -= (*shot)->damage;
+						if (sound)mciSendString(L"play .\\res\\snd\\herohurt.wav", NULL, NULL, NULL);
+						(*shot)->Release();
+						vEvilShots.erase(shot);
+						
+						if (Hero->lifes <= 0)
+						{
+							hero_killed = true;
+							RIPRect.left = Hero->get_rect().left;
+							RIPRect.right = 80.0f;
+							RIPRect.top + Hero->get_rect().top;
+							RIPRect.bottom = 80.0f;
+							FreeMem(&Hero);
+						}
+						
+						break;
+					}
+				}
+			}
+		}
+
+		if (!vHeroShots.empty())
+		{
+			for (std::vector<dll::SHOT*>::iterator shot = vHeroShots.begin(); shot < vHeroShots.end(); ++shot)
+			{
+				if (!(*shot)->move(level))
+				{
+					(*shot)->Release();
+					vHeroShots.erase(shot);
+					break;
+				}	
 			}
 		}
 
@@ -1265,6 +1340,59 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vEvils.empty())
+		{
+			for (int i = 0; i < vEvils.size(); ++i)
+			{
+				switch (vEvils[i]->type)
+				{
+				case evils::brain:
+				{
+					int frame = vEvils[i]->get_frame();
+					Draw->DrawBitmap(bmpBrain[frame], Resizer(bmpBrain[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+				}
+				break;
+
+				case evils::dervish:
+				{
+					int frame = vEvils[i]->get_frame();
+					Draw->DrawBitmap(bmpDervish[frame], Resizer(bmpDervish[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+				}
+				break;
+
+				case evils::ghost:
+				{
+					int frame = vEvils[i]->get_frame();
+					Draw->DrawBitmap(bmpGhost[frame], Resizer(bmpGhost[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+				}
+				break;
+
+				case evils::soul:
+				{
+					int frame = vEvils[i]->get_frame();
+					Draw->DrawBitmap(bmpSoul[frame], Resizer(bmpSoul[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+				}
+				break;
+				}
+
+				Draw->DrawLine(D2D1::Point2F(vEvils[i]->start.x - 10.0f, vEvils[i]->end.y + 5.0f),
+					D2D1::Point2F(vEvils[i]->start.x + (float)(vEvils[i]->lifes) / 1.5f, vEvils[i]->end.y + 5.0f), 
+					txtBrush, 5.0f);
+			}
+		}
+
+		if (!vEvilShots.empty())
+		{
+			for (int i = 0; i < vEvilShots.size(); ++i)
+				Draw->DrawBitmap(bmpShot, vEvilShots[i]->get_rect());
+		}
+
+		if (!vHeroShots.empty())
+		{
+			for (int i = 0; i < vHeroShots.size(); ++i)
+				Draw->DrawBitmap(bmpShot, vHeroShots[i]->get_rect());
+		}
+
 		if (nrmFormat && statBrush && txtBrush && inactBrush && hgltBrush && b1BckgBrush && b2BckgBrush && b3BckgBrush)
 		{
 			Draw->FillRectangle(D2D1::RectF(0, 0, scr_width, 50.0f), statBrush);
@@ -1339,44 +1467,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 					Draw->SetTransform(D2D1::Matrix3x2F::Identity());
 				}
 			}
+		
+			Draw->DrawLine(D2D1::Point2F(Hero->start.x - 10.0f, Hero->end.y + 5.0f),
+				D2D1::Point2F(Hero->start.x + (float)(Hero->lifes) / 2.0f, Hero->end.y + 5.0f), txtBrush, 5.0f);
 		}
 
-		if (!vEvils.empty())
-		{
-			for (int i = 0; i < vEvils.size(); ++i)
-			{
-				switch (vEvils[i]->type)
-				{
-				case evils::brain:
-					{
-						int frame = vEvils[i]->get_frame();
-						Draw->DrawBitmap(bmpBrain[frame], Resizer(bmpBrain[frame], vEvils[i]->start.x, vEvils[i]->start.y));
-					}
-				break;
 
-				case evils::dervish:
-				{
-					int frame = vEvils[i]->get_frame();
-					Draw->DrawBitmap(bmpDervish[frame], Resizer(bmpDervish[frame], vEvils[i]->start.x, vEvils[i]->start.y));
-				}
-				break;
-
-				case evils::ghost:
-				{
-					int frame = vEvils[i]->get_frame();
-					Draw->DrawBitmap(bmpGhost[frame], Resizer(bmpGhost[frame], vEvils[i]->start.x, vEvils[i]->start.y));
-				}
-				break;
-
-				case evils::soul:
-				{
-					int frame = vEvils[i]->get_frame();
-					Draw->DrawBitmap(bmpSoul[frame], Resizer(bmpSoul[frame], vEvils[i]->start.x, vEvils[i]->start.y));
-				}
-				break;
-				}
-			}
-		}
+		
 
 
 
