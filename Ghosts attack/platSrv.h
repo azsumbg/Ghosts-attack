@@ -37,7 +37,7 @@ enum class dirs { up = 0, down = 1, left = 2, right = 3, up_left = 4, up_right =
 enum class evils { brain = 0, dervish = 1, ghost = 2, soul = 3 };
 enum class assets { armor = 0, life = 1, shot = 2 };
 enum class tiles { grass = 0, grass_blue = 1, grass_red = 2, grass_dirt = 3, dirt = 4 };
-enum class obstacles { tree1 = 0, tree2 = 1, tree3 = 2, boulder = 3, rock = 4};
+enum class obstacles { tree1 = 0, tree2 = 1, tree3 = 2, boulder = 3, rock = 4, house = 5};
 enum class actions { move = 0, attack = 1, patrol = 2 };
 
 namespace dll
@@ -550,7 +550,7 @@ namespace dll
 	public:
 		obstacles type{ obstacles::tree1 };
 
-		bool move(float gear, dirs dir);
+		void move(float gear, dirs dir);
 		void Release();
 
 		static OBSTACLE* create(obstacles my_type, float sx, float sy);
