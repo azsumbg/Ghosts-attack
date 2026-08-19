@@ -590,6 +590,12 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 		GameOver();
 		break;
 
+	case WM_TIMER:
+		if (pause)break;
+		++secs;
+		mins = secs / 60;
+		break;
+
 	case WM_SETCURSOR:
 		GetCursorPos(&cur_pos);
 		ScreenToClient(hwnd, &cur_pos);
@@ -1562,7 +1568,41 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
-		
+		if (!vEvils.empty() && !vAssets.empty())
+		{
+			for (std::vector<dll::EVILS*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				for (std::vector<dll::FADING>::iterator asset = vAssets.begin(); asset < vAssets.end(); ++asset)
+				{
+					if (asset->type != assets::chest)continue;
+					else
+					{
+						if (dll::Intersect((*evil)->get_rect(), asset->rect))
+						{
+							switch (RandIt(0, 2))
+							{
+							case 0:
+								asset->type = assets::armor;
+								(*evil)->armor++;
+								break;
+
+							case 1:
+								asset->type = assets::life;
+								if ((*evil)->lifes + 30 <= 100)(*evil)->lifes += 30;
+								break;
+
+							case 2:
+								asset->type = assets::shot;
+								(*evil)->damage++;
+								break;
+							}
+
+						}
+					}
+				}
+			}
+		}
+
 	/////////////////////////////////////////////////////
 
 
@@ -1781,6 +1821,27 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 			Draw->DrawTextW(txt, size, midFormat, D2D1::RectF(10.0f, ground + 5.0f, scr_width, scr_height), inactBrush);
 
+			wcscpy_s(txt, L"\0");
+			if (mins < 10)wcscat_s(txt, L"0");
+
+			wsprintf(add, L"%d", mins);
+			wcscat_s(txt, add);
+
+			wcscat_s(txt, L" : ");
+			if (secs - mins * 60 < 10)wcscat_s(txt, L"0");
+			wsprintf(add, L"%d", secs - mins * 60);
+			wcscat_s(txt, add);
+
+			size = 0;
+
+			for (int i = 0; i < 150; ++i)
+			{
+				if (txt[i] != '\0')++size;
+				else break;
+			}
+
+			Draw->DrawTextW(txt, size, midFormat, D2D1::RectF(scr_width-150.0f, 
+				sky + 10.0f, scr_width, scr_height), hgltBrush);
 
 		}
 
