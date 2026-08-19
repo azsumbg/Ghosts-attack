@@ -249,15 +249,71 @@ int IntroFrame()
 	if (frame > 105)frame = 0;
 	return frame;
 }
+BOOL CheckRecord()
+{
+	if (score < 1)return no_record;
 
+	int result{ 0 };
+	CheckFile(record_file, &result);
+
+	if (result == FILE_NOT_EXIST)
+	{
+		std::wofstream rec(record_file);
+		rec << score << std::endl;
+		for (int i = 0; i < 16; ++i)rec << static_cast<int>(current_player[i]) << std::endl;
+		rec.close();
+
+		return first_record;
+	}
+	else
+	{
+		std::wifstream check(record_file);
+		check >> result;
+		check.close();
+	}
+
+	if (score > result)
+	{
+		std::wofstream rec(record_file);
+		rec << score << std::endl;
+		for (int i = 0; i < 16; ++i)rec << static_cast<int>(current_player[i]) << std::endl;
+		rec.close();
+		return record;
+	}
+
+	return no_record;
+}
 void GameOver()
 {
 	KillTimer(bHwnd, bTimer);
 	PlaySound(NULL, NULL, NULL);
 
+	switch (CheckRecord())
+	{
+	case no_record:
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpLogoLoose, FULL_SCREEN);
+		Draw->EndDraw();
+		if (sound)PlaySound(L".\\res\\snd\\loose.wav", NULL, SND_SYNC);
+		else Sleep(4000);
+		break;
 
+	case first_record:
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpLogoWin, FULL_SCREEN);
+		Draw->EndDraw();
+		if (sound)PlaySound(L".\\res\\snd\\win.wav", NULL, SND_SYNC);
+		else Sleep(4000);
+		break;
 
-
+	case record:
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpLogoRecord, FULL_SCREEN);
+		Draw->EndDraw();
+		if (sound)PlaySound(L".\\res\\snd\\record.wav", NULL, SND_SYNC);
+		else Sleep(4000);
+		break;
+	}
 
 	bMsg.message = WM_QUIT;
 	bMsg.wParam = 0;
