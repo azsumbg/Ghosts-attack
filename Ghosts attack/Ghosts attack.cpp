@@ -1196,6 +1196,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 						if ((*evil)->lifes <= 0)
 						{
+							score += (*evil)->damage;
 							if (sound)mciSendString(L"play .\\res\\snd\\evilkilled.wav", NULL, NULL, NULL);
 							killed = true;
 							(*evil)->Release();
@@ -1330,9 +1331,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 						{
 							hero_killed = true;
 							RIPRect.left = Hero->get_rect().left;
-							RIPRect.right = 80.0f;
+							RIPRect.right = Hero->get_rect().left + 80.0f;
 							RIPRect.top = Hero->get_rect().top;
-							RIPRect.bottom = 80.0f;
+							RIPRect.bottom = Hero->get_rect().top + 94.0f;
 							FreeMem(&Hero);
 						}
 						
@@ -1496,6 +1497,41 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3TxtRect, hgltBrush);
 		}
 		
+		if (statBrush && midFormat && inactBrush && Hero)
+		{
+			Draw->FillRectangle(D2D1::RectF(0, ground, scr_width, scr_height), statBrush);
+			
+			wchar_t txt[150]{ L"броня: " };
+			wchar_t add[5]{ L"\0" };
+
+			wsprintf(add, L"%d", Hero->armor);
+			wcscat_s(txt, add);
+
+			wcscat_s(txt, L", сила: ");
+			wsprintf(add, L"%d", Hero->damage);
+			wcscat_s(txt, add);
+
+			wcscat_s(txt, L", ниво: ");
+			wsprintf(add, L"%d", (int)(level));
+			wcscat_s(txt, add);
+
+			wcscat_s(txt, L", точки: ");
+			wsprintf(add, L"%d", score);
+			wcscat_s(txt, add);
+
+			int size = 0;
+
+			for (int i = 0; i < 150; ++i)
+			{
+				if (txt[i] != '\0')++size;
+				else break;
+			}
+
+			Draw->DrawTextW(txt, size, midFormat, D2D1::RectF(10.0f, ground + 5.0f, scr_width, scr_height), inactBrush);
+
+
+		}
+
 		////////////////////////////////////////////////////////
 
 		if (Hero)
@@ -1572,8 +1608,31 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		
 			Draw->DrawLine(D2D1::Point2F(Hero->start.x - 10.0f, Hero->end.y + 5.0f),
 				D2D1::Point2F(Hero->start.x + (float)(Hero->lifes) / 2.0f, Hero->end.y + 5.0f), txtBrush, 5.0f);
-		}
+			
+			int size{ 0 };
+			for (int i = 0; i < 16; ++i)
+			{
+				if (current_player[i] != '\0')++size;
+				else break;
+			}
 
+			Draw->DrawTextW(current_player, size, nrmFormat, D2D1::RectF(Hero->start.x - 5.0f, Hero->start.y - 18.0f,
+				Hero->end.x, Hero->start.y), hgltBrush);
+		}
+		if (hero_killed)
+		{
+			Draw->EndDraw();
+			Draw->BeginDraw();
+			Draw->DrawBitmap(bmpRIP, RIPRect);
+			Draw->EndDraw();
+			if (sound)
+			{
+				PlaySound(NULL, NULL, NULL);
+				PlaySound(L".\\res\\snd\\killed.wav", NULL, SND_SYNC);
+			}
+			else Sleep(3000);
+			GameOver();
+		}
 
 		
 
@@ -1582,7 +1641,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	////////////////////////////////////////////////////////////
 
 		Draw->EndDraw();
-
 	}
 
 	ClearResources();
