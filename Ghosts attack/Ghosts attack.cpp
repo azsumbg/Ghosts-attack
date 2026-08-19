@@ -284,8 +284,11 @@ void InitGame()
 	Hero = dll::HERO::create(RandIt(50.0f, scr_width - 100.0f), ground - 100.0f);
 
 	for (int i = 0; i < vEvils.size(); ++i)FreeMem(&vEvils[i]);
+	vEvils.clear();
 
 	for (int i = 0; i < vObstacles.size(); ++i)FreeMem(&vObstacles[i]);
+	vObstacles.clear();
+
 	for (int count = 0; count < 100; ++count)
 	{
 		bool ok = false;
@@ -368,6 +371,145 @@ void InitGame()
 
 	for (int i = 0; i < vEvilShots.size(); ++i)FreeMem(&vEvilShots[i]);
 	for (int i = 0; i < vHeroShots.size(); ++i)FreeMem(&vHeroShots[i]);
+
+	vEvilShots.clear();
+	vHeroShots.clear();
+}
+void LevelUp()
+{
+	PlaySound(NULL, NULL, NULL);
+
+	if (level_skipped)
+	{
+		level_skipped = false;
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpIntro[IntroFrame()], FULL_SCREEN);
+		Draw->DrawTextW(L"НИВОТО ПРЕСКОЧЕНО !", 20, bigFormat, D2D1::RectF(100.0f, scr_height / 2.0f - 50.0f,
+			scr_width, scr_height), hgltBrush);
+		Draw->EndDraw();
+		if (sound)
+		{
+			PlaySound(L".\\res\\snd\\levelfailed.wav", NULL, SND_SYNC);
+			Sleep(3000);
+		}
+		else Sleep(4000);
+	}
+	else
+	{
+		score += secs;
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpLogoLevel, FULL_SCREEN);
+		Draw->EndDraw();
+		if (sound)PlaySound(L".\\res\\snd\\levelup.wav", NULL, SND_SYNC);
+		else Sleep(4000);
+	}
+
+	PlaySound(snd_file, NULL, SND_ASYNC | SND_LOOP);
+
+	++level;
+
+	mins = 0;
+	secs = 0;
+
+	nature_dir = dirs::stop;
+
+	if (Field)delete Field;
+	Field = new dll::FIELD{};
+
+	FreeMem(&Hero);
+	Hero = dll::HERO::create(RandIt(50.0f, scr_width - 100.0f), ground - 100.0f);
+
+	for (int i = 0; i < vEvils.size(); ++i)FreeMem(&vEvils[i]);
+	vEvils.clear();
+
+	for (int i = 0; i < vObstacles.size(); ++i)FreeMem(&vObstacles[i]);
+	vObstacles.clear();
+
+	for (int count = 0; count < 100; ++count)
+	{
+		bool ok = false;
+
+		while (!ok)
+		{
+			ok = true;
+
+			float sx{ RandIt(-2.0f * scr_width, 2.0f * scr_width) };
+			float sy{ RandIt(-2.0f * scr_height, 2.0f * scr_height) };
+
+			dll::OBSTACLE* dummy{ dll::OBSTACLE::create(static_cast<obstacles>(RandIt(0,4)), sx, sy) };
+
+			if (Hero)
+			{
+				if (dll::Intersect(Hero->get_rect(), dummy->get_rect()))
+				{
+					ok = false;
+					break;
+				}
+			}
+			if (!vObstacles.empty())
+			{
+				for (int i = 0; i < vObstacles.size(); ++i)
+				{
+					if (dll::Intersect(vObstacles[i]->get_rect(), dummy->get_rect()))
+					{
+						ok = false;
+						break;
+					}
+				}
+			}
+
+			if (ok)vObstacles.push_back(dummy);
+		}
+	}
+	bool house_ok = false;
+
+	while (!house_ok)
+	{
+		house_ok = true;
+
+		float sx{ RandIt(-2.0f * scr_width, 2.0f * scr_width) };
+		float sy{ RandIt(-2.0f * scr_height, 2.0f * scr_height) };
+
+		if (sx >= 0 && sx <= scr_width)
+		{
+			if (RandIt(0, 2 == 1))sx += scr_width;
+			else sx -= scr_width;
+		}
+		if (sy >= sky && sy <= ground)
+		{
+			if (RandIt(0, 2 == 1))sy += scr_height;
+			else sx -= scr_height;
+		}
+
+		dll::OBSTACLE* dummy{ dll::OBSTACLE::create(obstacles::house, sx, sy) };
+
+		if (Hero)
+		{
+			if (dll::Intersect(Hero->get_rect(), dummy->get_rect())) house_ok = false;
+
+		}
+		if (!vObstacles.empty())
+		{
+			for (int i = 0; i < vObstacles.size(); ++i)
+			{
+				if (dll::Intersect(vObstacles[i]->get_rect(), dummy->get_rect()))
+				{
+					house_ok = false;
+					break;
+				}
+			}
+		}
+
+		if (house_ok)vObstacles.push_back(dummy);
+	}
+
+	vAssets.clear();
+
+	for (int i = 0; i < vEvilShots.size(); ++i)FreeMem(&vEvilShots[i]);
+	for (int i = 0; i < vHeroShots.size(); ++i)FreeMem(&vHeroShots[i]);
+
+	vEvilShots.clear();
+	vHeroShots.clear();
 }
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -564,7 +706,7 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 				break;
 			}
 			level_skipped = true;
-			//LevelUp();
+			LevelUp();
 			break;
 
 		case mExit:
@@ -1197,6 +1339,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 						if ((*evil)->lifes <= 0)
 						{
 							score += (*evil)->damage;
+
+							if (RandIt(0, 3) == 1)
+							{
+								dll::FADING dummy{};
+								dummy.type = assets::chest;
+								dummy.rect.left = (*evil)->start.x;
+								dummy.rect.right = (*evil)->start.x + 32.0f;
+								dummy.rect.top = (*evil)->start.y;
+								dummy.rect.bottom = (*evil)->start.y + 32.0f;
+
+								vAssets.push_back(dummy);
+							}
+
 							if (sound)mciSendString(L"play .\\res\\snd\\evilkilled.wav", NULL, NULL, NULL);
 							killed = true;
 							(*evil)->Release();
@@ -1208,6 +1363,41 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				}
 
 				if (killed)break;
+			}
+		}
+
+		if (Hero && !vAssets.empty())
+		{
+			for (int i = 0; i < vAssets.size(); ++i)
+			{
+				if (vAssets[i].type != assets::chest)continue;
+				else
+				{
+					if (dll::Intersect(Hero->get_rect(), vAssets[i].rect))
+					{
+						switch (RandIt(0, 2))
+						{
+						case 0:
+							vAssets[i].type = assets::armor;
+							Hero->armor++;
+							if (sound)mciSendString(L"play .\\res\\snd\\armor.wav", NULL, NULL, NULL);
+							break;
+
+						case 1:
+							vAssets[i].type = assets::life;
+							if (Hero->lifes + 30 <= 200)Hero->lifes += 30;
+							else Hero->lifes = 200;
+							if (sound)mciSendString(L"play .\\res\\snd\\life.wav", NULL, NULL, NULL);
+							break;
+
+						case 2:
+							vAssets[i].type = assets::shot;
+							Hero->damage++;
+							if (sound)mciSendString(L"play .\\res\\snd\\damage.wav", NULL, NULL, NULL);
+							break;
+						}
+					}
+				}
 			}
 		}
 
@@ -1232,16 +1422,45 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				{
 					if (dll::Intersect(Hero->get_rect(), vObstacles[i]->get_rect()))
 					{
-						if (Hero->start.x > vObstacles[i]->start.x && Hero->start.x <= vObstacles[i]->end.x)Hero->start.x += 0.2f;
-						if (Hero->end.x >= vObstacles[i]->start.x && Hero->end.x <= vObstacles[i]->end.x)Hero->start.x -= 0.2f;
-						if (Hero->start.y > vObstacles[i]->start.x && Hero->start.y <= vObstacles[i]->end.y)Hero->start.y += 0.2f;
-						if (Hero->end.y >= vObstacles[i]->start.y && Hero->end.y <= vObstacles[i]->end.y)Hero->start.y -= 0.2f;
+						if (vObstacles[i]->type == obstacles::house)
+						{
+							Draw->EndDraw();
+							LevelUp();
+						}
+						else
+						{
+							if (Hero->start.x > vObstacles[i]->start.x && Hero->start.x <= vObstacles[i]->end.x)
+								Hero->start.x += 0.2f;
+							if (Hero->end.x >= vObstacles[i]->start.x && Hero->end.x <= vObstacles[i]->end.x)Hero->start.x -= 0.2f;
+							if (Hero->start.y > vObstacles[i]->start.x && Hero->start.y <= vObstacles[i]->end.y)
+								Hero->start.y += 0.2f;
+							if (Hero->end.y >= vObstacles[i]->start.y && Hero->end.y <= vObstacles[i]->end.y)Hero->start.y -= 0.2f;
 
-						Hero->set_edges();
-						Hero->dir = dirs::stop;
-						nature_dir = dirs::stop;
+							Hero->set_edges();
+							Hero->dir = dirs::stop;
+							nature_dir = dirs::stop;
+						}
 					}
 				}
+			else
+			{
+				for (int i = 0; i < vObstacles.size(); ++i)
+				{
+					if (dll::Intersect(Hero->get_rect(), vObstacles[i]->get_rect()))
+					{
+					
+							if (Hero->start.x > vObstacles[i]->start.x && Hero->start.x <= vObstacles[i]->end.x)
+								Hero->start.x += 0.2f;
+							if (Hero->end.x >= vObstacles[i]->start.x && Hero->end.x <= vObstacles[i]->end.x)Hero->start.x -= 0.2f;
+							if (Hero->start.y > vObstacles[i]->start.x && Hero->start.y <= vObstacles[i]->end.y)
+								Hero->start.y += 0.2f;
+							if (Hero->end.y >= vObstacles[i]->start.y && Hero->end.y <= vObstacles[i]->end.y)Hero->start.y -= 0.2f;
+
+							Hero->set_edges();
+							nature_dir = dirs::stop;
+					}
+				}
+			}
 		}
 
 	///////////////////////////////////////////////////////
@@ -1421,6 +1640,39 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				case obstacles::house:
 					Draw->DrawBitmap(bmpHouse, (*it)->get_rect());
 					break;
+				}
+			}
+		}
+
+		if (!vAssets.empty())
+		{
+			for (std::vector<dll::FADING>::iterator asset = vAssets.begin(); asset < vAssets.end(); ++asset)
+			{
+				if (asset->type == assets::chest)Draw->DrawBitmap(bmpChest, asset->rect);
+				else
+				{
+					float dim = asset->opacity();
+
+					if (dim <= 0)
+					{
+						vAssets.erase(asset);
+						break;
+					}
+
+					switch (asset->type)
+					{
+					case assets::armor:
+						Draw->DrawBitmap(bmpArmor, asset->rect, dim);
+						break;
+
+					case assets::life:
+						Draw->DrawBitmap(bmpLife, asset->rect, dim);
+						break;
+
+					case assets::shot:
+						Draw->DrawBitmap(bmpShot, asset->rect, dim);
+						break;
+					}
 				}
 			}
 		}
@@ -1633,9 +1885,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			else Sleep(3000);
 			GameOver();
 		}
-
-		
-
 
 
 	////////////////////////////////////////////////////////////
